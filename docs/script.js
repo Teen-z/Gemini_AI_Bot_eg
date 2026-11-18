@@ -1,3 +1,6 @@
+// เปลี่ยน URL ด้านล่างนี้เป็นลิงก์ Backend Server ของคุณ (เช่น Render / Railway / Koyeb)
+const API_BASE_URL = "https://your-backend-app.onrender.com";
+
 const form = document.getElementById("chatForm");
 const input = document.getElementById("messageInput");
 const chatArea = document.getElementById("chatArea");
@@ -54,7 +57,7 @@ async function sendMessage(text) {
     loading.querySelector("div:last-child").classList.add("loading");
 
     try {
-        const response = await fetch("/api/chat", {
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

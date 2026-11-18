@@ -11,3 +11,5 @@ pandas
 openpyxl
 python-pptx
 beautifulsoup4
+google-api-python-client
+google-auth

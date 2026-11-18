@@ -27,7 +27,6 @@
         .btn-action { flex: 1; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; }
         .btn-action:hover { background: #edf2f7; }
 
-        /* Sources List Cards */
         .sources-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
         .source-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; transition: all 0.2s; }
         .source-card.disabled { opacity: 0.5; background: #f1f5f9; }
@@ -126,6 +125,9 @@
     </div>
 
     <script>
+        // เปลี่ยน URL ด้านล่างนี้เป็นลิงก์ Backend Server ของคุณ (เช่น Render / Railway / Koyeb)
+        const API_BASE_URL = "https://your-backend-app.onrender.com";
+
         window.onload = function() {
             const savedKey = sessionStorage.getItem("ADMIN_KEY");
             if (savedKey) checkKeyAndUnlock(savedKey);
@@ -138,7 +140,7 @@
 
         async function checkKeyAndUnlock(key) {
             try {
-                const res = await fetch(`/api/admin/sources?admin_key=${encodeURIComponent(key)}`);
+                const res = await fetch(`${API_BASE_URL}/api/admin/sources?admin_key=${encodeURIComponent(key)}`);
                 if (res.ok) {
                     sessionStorage.setItem("ADMIN_KEY", key);
                     document.getElementById("loginOverlay").style.display = "none";
@@ -167,7 +169,7 @@
             if (!key) return;
 
             try {
-                const res = await fetch(`/api/admin/sources?admin_key=${encodeURIComponent(key)}`);
+                const res = await fetch(`${API_BASE_URL}/api/admin/sources?admin_key=${encodeURIComponent(key)}`);
                 const data = await res.json();
                 if (res.ok) renderSources(data.sources);
             } catch (err) { console.error(err); }
@@ -184,7 +186,7 @@
                 <div class="source-card ${src.active ? '' : 'disabled'}">
                     <div class="source-header">
                         <div class="source-name">
-                            ${src.type === 'file' ? '📄' : '📝'} ${src.name}
+                            ${src.type === 'file' || src.type === 'gdrive_direct' ? '📄' : '📝'} ${src.name}
                         </div>
                     </div>
                     <div class="source-meta">เพิ่มเมื่อ: ${src.created_at || 'ไม่ระบุ'}</div>
@@ -207,14 +209,14 @@
             const file = inputElement.files[0];
             const statusDiv = document.getElementById("uploadStatus");
             statusDiv.style.display = "block";
-            statusDiv.textContent = `⏳ กำลังอ่านข้อมูลจาก "${file.name}"...`;
+            statusDiv.textContent = `⏳ กำลังอัปโหลด "${file.name}" ขึ้น Google Drive...`;
 
             const formData = new FormData();
             formData.append("admin_key", key);
             formData.append("file", file);
 
             try {
-                const res = await fetch("/api/admin/sources/upload", { method: "POST", body: formData });
+                const res = await fetch(`${API_BASE_URL}/api/admin/sources/upload`, { method: "POST", body: formData });
                 const data = await res.json();
                 if (res.ok) {
                     statusDiv.textContent = `✅ ${data.message}`;
@@ -232,7 +234,7 @@
             if (!key || !title || !content) return alert("กรุณากรอกข้อมูลให้ครบ");
 
             try {
-                const res = await fetch("/api/admin/sources/text", {
+                const res = await fetch(`${API_BASE_URL}/api/admin/sources/text`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ admin_key: key, title: title, content: content })
@@ -249,16 +251,16 @@
         async function toggleSource(id) {
             const key = sessionStorage.getItem("ADMIN_KEY");
             try {
-                await fetch(`/api/admin/sources/${id}/toggle?admin_key=${encodeURIComponent(key)}`, { method: "PATCH" });
+                await fetch(`${API_BASE_URL}/api/admin/sources/${id}/toggle?admin_key=${encodeURIComponent(key)}`, { method: "PATCH" });
                 loadSources();
             } catch (err) { alert("เปลี่ยนสถานะไม่สำเร็จ"); }
         }
 
         async function deleteSource(id, name) {
-            if (!confirm(`คุณต้องการลบ "${name}" ใช่หรือไม่?`)) return;
+            if (!confirm(`คุณต้องการลบ "${name}" ออกจาก Google Drive ใช่หรือไม่?`)) return;
             const key = sessionStorage.getItem("ADMIN_KEY");
             try {
-                await fetch(`/api/admin/sources/${id}?admin_key=${encodeURIComponent(key)}`, { method: "DELETE" });
+                await fetch(`${API_BASE_URL}/api/admin/sources/${id}?admin_key=${encodeURIComponent(key)}`, { method: "DELETE" });
                 loadSources();
             } catch (err) { alert("ลบไม่สำเร็จ"); }
         }
@@ -283,7 +285,7 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
             try {
-                const res = await fetch("/api/chat", {
+                const res = await fetch(`${API_BASE_URL}/api/chat`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ message: text })

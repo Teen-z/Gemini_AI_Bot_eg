@@ -2,74 +2,31 @@ import os
 import re
 import json
 from datetime import datetime, date
-from pathlib import Path
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from gdrive_storage import get_all_sources, save_sources
 
 load_dotenv()
 
 API_KEY = os.getenv("GEMINI_API_KEY")
-DATA_DIR = Path("data")
-SOURCES_FILE = DATA_DIR / "sources.json"
-ORG_PROFILE_FILE = DATA_DIR / "org_profile.json"
-LOGS_FILE = DATA_DIR / "chat_logs.jsonl"
-
 if not API_KEY:
-    raise RuntimeError("ไม่พบ GEMINI_API_KEY กรุณาตรวจสอบไฟล์ .env")
+    raise RuntimeError("ไม่พบ GEMINI_API_KEY กรุณาตรวจสอบไฟล์ .env หรือ Environment Variables")
 
 client = genai.Client(api_key=API_KEY)
 
-DATA_DIR.mkdir(exist_ok=True)
-if not SOURCES_FILE.exists():
-    SOURCES_FILE.write_text("[]", encoding="utf-8")
-
-if not ORG_PROFILE_FILE.exists():
-    default_profile = {
-        "organization_name": "องค์กร / หน่วยงานของคุณ",
-        "working_hours": "วันจันทร์ - วันศุกร์ เวลา 08:30 - 16:30 น. (หยุดวันเสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์)",
-        "contact_info": "ติดต่อฝ่ายธุรการ หรือสอบถามผ่านแอดมินในช่องทางนี้",
-        "bot_capabilities": "ช่วยตอบคำถามจากเอกสารในคลังความรู้, ตรวจสอบสิทธิ์รายบุคคล, วิเคราะห์รูปภาพ (ใน Discord), และค้นหาข้อมูลปัจจุบันจากอินเทอร์เน็ต"
-    }
-    ORG_PROFILE_FILE.write_text(json.dumps(default_profile, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def get_all_sources():
-    try:
-        return json.loads(SOURCES_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return []
-
-
-def save_sources(sources):
-    SOURCES_FILE.write_text(json.dumps(sources, ensure_ascii=False, indent=2), encoding="utf-8")
-
 
 def get_org_profile() -> dict:
-    try:
-        return json.loads(ORG_PROFILE_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-
-def log_interaction(platform: str, user_id: str, question: str, answer: str):
-    """บันทึกประวัติการถาม-ตอบ (เซนเซอร์ข้อมูลสำคัญก่อนลง Log)"""
-    try:
-        entry = {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "platform": platform,
-            "user_id": user_id,
-            "question": redact_sensitive_patterns(question),
-            "answer": redact_sensitive_patterns(answer)
-        }
-        with LOGS_FILE.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception as e:
-        print("LOG ERROR:", e)
+    """ตั้งค่าข้อมูลพื้นฐานขององค์กรผ่าน Environment Variables หรือค่าเริ่มต้น"""
+    return {
+        "organization_name": os.getenv("ORG_NAME", "องค์กร / หน่วยงานของคุณ"),
+        "working_hours": os.getenv("ORG_HOURS", "วันจันทร์ - วันศุกร์ เวลา 08:30 - 16:30 น. (หยุดวันเสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์)"),
+        "contact_info": os.getenv("ORG_CONTACT", "ติดต่อฝ่ายธุรการ หรือสอบถามผ่านแอดมินในช่องทางนี้"),
+        "bot_capabilities": "ช่วยตอบคำถามจากเอกสารในคลังความรู้ Google Drive, ตรวจสอบสิทธิ์รายบุคคล, วิเคราะห์รูปภาพ (ใน Discord), และค้นหาข้อมูลปัจจุบันจากอินเทอร์เน็ต"
+    }
 
 
 def get_rich_datetime_context() -> str:
-    """สร้างข้อมูลวัน เวลา ช่วงเวลา ฤดูกาล และวันหยุดสำคัญของไทย"""
     now = datetime.now()
     today = now.date()
 
@@ -92,31 +49,18 @@ def get_rich_datetime_context() -> str:
         time_period = "ช่วงกลางคืน/ดึก"
 
     month = now.month
-    if 3 <= month <= 5:
-        season = "ฤดูร้อน"
-    elif 6 <= month <= 10:
-        season = "ฤดูฝน"
-    else:
-        season = "ฤดูหนาว"
-
+    season = "ฤดูร้อน" if 3 <= month <= 5 else ("ฤดูฝน" if 6 <= month <= 10 else "ฤดูหนาว")
     is_weekend = "วันหยุดสุดสัปดาห์ (เสาร์-อาทิตย์)" if now.weekday() >= 5 else "วันทำงานปกติ (จันทร์-ศุกร์)"
 
     fixed_holidays = [
-        ((1, 1), "วันขึ้นปีใหม่"),
-        ((4, 6), "วันจักรี"),
-        ((4, 13), "วันสงกรานต์"),
-        ((4, 14), "วันสงกรานต์"),
-        ((4, 15), "วันสงกรานต์"),
-        ((5, 1), "วันแรงงานแห่งชาติ"),
-        ((5, 4), "วันฉัตรมงคล"),
+        ((1, 1), "วันขึ้นปีใหม่"), ((4, 6), "วันจักรี"),
+        ((4, 13), "วันสงกรานต์"), ((4, 14), "วันสงกรานต์"), ((4, 15), "วันสงกรานต์"),
+        ((5, 1), "วันแรงงานแห่งชาติ"), ((5, 4), "วันฉัตรมงคล"),
         ((6, 3), "วันเฉลิมพระชนมพรรษาสมเด็จพระนางเจ้าฯ พระบรมราชินี"),
         ((7, 28), "วันเฉลิมพระชนมพรรษาพระบาทสมเด็จพระเจ้าอยู่หัว"),
-        ((8, 12), "วันแม่แห่งชาติ"),
-        ((10, 13), "วันนวมินทรมหาราช"),
-        ((10, 23), "วันปิยมหาราช"),
-        ((12, 5), "วันพ่อแห่งชาติ"),
-        ((12, 10), "วันรัฐธรรมนูญ"),
-        ((12, 31), "วันสิ้นปี"),
+        ((8, 12), "วันแม่แห่งชาติ"), ((10, 13), "วันนวมินทรมหาราช"),
+        ((10, 23), "วันปิยมหาราช"), ((12, 5), "วันพ่อแห่งชาติ"),
+        ((12, 10), "วันรัฐธรรมนูญ"), ((12, 31), "วันสิ้นปี"),
     ]
 
     today_holiday = "ไม่มี"
@@ -143,7 +87,6 @@ def get_rich_datetime_context() -> str:
 
 
 def redact_sensitive_patterns(text: str) -> str:
-    """เซนเซอร์ข้อมูลความลับอัตโนมัติ"""
     text = re.sub(
         r'(?i)(password|passwd|pwd|secret|token|api_key|apikey|admin_key)\s*[:=]\s*[^\s\n]+',
         r'\1: [REDACTED_CONFIDENTIAL]',
@@ -154,7 +97,6 @@ def redact_sensitive_patterns(text: str) -> str:
 
 
 def get_relevant_knowledge(query: str, history: list = None, allow_confidential: bool = False) -> tuple[str, int]:
-    """คัดกรองเอกสารที่เกี่ยวข้องกับคำถามปัจจุบันและประวัติแชทล่าสุด"""
     sources = get_all_sources()
 
     search_text = query
@@ -233,13 +175,11 @@ def build_system_prompt(query: str, history: list = None, allow_confidential: bo
 
 
 def is_leaking_bulk_ids(response_text: str) -> bool:
-    """สกัดกั้นไม่ให้ AI พ่นรหัสประจำตัว 6 หลักออกมาเป็นชุด (เกิน 2 รหัสขึ้นไป)"""
     employee_ids = re.findall(r'\b\d{6}\b', response_text)
     return len(employee_ids) > 2
 
 
 def extract_search_sources(response) -> str:
-    """ดึงลิงก์แหล่งอ้างอิงหาก AI มีการค้นหาข้อมูลบน Google"""
     try:
         candidate = response.candidates[0]
         metadata = getattr(candidate, "grounding_metadata", None)
@@ -333,7 +273,6 @@ def ask_ai(
                 else:
                     reply += extract_search_sources(response)
 
-                log_interaction(platform, user_id, message, reply)
                 return reply
 
         except Exception as error:
