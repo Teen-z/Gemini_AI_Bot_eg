@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotebookLM Admin Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { height: 100vh; background-color: #f8fafc; color: #1e293b; overflow: hidden; }
+
+        .login-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 999; }
+        .login-card { background: #fff; padding: 32px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .login-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .login-card p { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+        .login-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; margin-bottom: 16px; outline: none; }
+        .btn-login { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .login-error { color: #ef4444; font-size: 12px; margin-top: 12px; display: none; }
+
+        .app-container { display: flex; height: 100vh; width: 100vw; }
+        .sidebar { width: 380px; background: #fff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; padding: 20px; gap: 16px; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; }
+        .sidebar-title { font-size: 18px; font-weight: 700; }
+        .btn-logout { border: none; background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; }
+
+        .action-buttons { display: flex; gap: 10px; }
+        .btn-action { flex: 1; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; }
+        .btn-action:hover { background: #edf2f7; }
+
+        /* Sources List Cards */
+        .sources-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+        .source-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; transition: all 0.2s; }
+        .source-card.disabled { opacity: 0.5; background: #f1f5f9; }
+        .source-header { display: flex; justify-content: space-between; align-items: center; }
+        .source-name { font-size: 13px; font-weight: 600; color: #0f172a; word-break: break-all; display: flex; align-items: center; gap: 6px; }
+        .source-meta { font-size: 11px; color: #94a3b8; }
+        .source-actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+        .btn-icon { border: none; background: none; cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
+        .btn-icon:hover { background: #e2e8f0; }
+        .btn-delete:hover { background: #fee2e2; color: #ef4444; }
+
+        .input-card { background: #f1f5f9; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
+        textarea, input[type="text"] { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; }
+        textarea { height: 70px; resize: none; }
+        .btn-submit { background: #2563eb; color: white; border: none; padding: 8px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+        .main-workspace { flex: 1; display: flex; flex-direction: column; background: #fff; }
+        .workspace-header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .chat-container { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+        .chat-welcome { text-align: center; margin: auto; max-width: 480px; }
+        .chat-welcome h1 { font-size: 24px; margin-bottom: 8px; }
+        .chat-welcome p { font-size: 14px; color: #64748b; }
+        .message-bubble { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+        .message-user { align-self: flex-end; background: #2563eb; color: white; border-bottom-right-radius: 2px; }
+        .message-ai { align-self: flex-start; background: #f1f5f9; color: #0f172a; border-bottom-left-radius: 2px; border: 1px solid #e2e8f0; }
+
+        .chat-input-area { padding: 16px 24px; border-top: 1px solid #e2e8f0; }
+        .input-wrapper { display: flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 24px; padding: 4px 16px; }
+        .input-wrapper input { flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; outline: none; }
+        .btn-send { background: #2563eb; color: white; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
+        .status-msg { font-size: 11px; margin-top: 4px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>✦ Admin Access</h2>
+            <p>กรุณากรอก Admin Key เพื่อปลดล็อกเข้าสู่หน้าจัดการความรู้</p>
+            <input type="password" id="loginKey" class="login-input" placeholder="Admin Secret Key" onkeypress="if(event.key==='Enter') verifyLogin()">
+            <button class="btn-login" onclick="verifyLogin()">เข้าสู่ระบบ</button>
+            <div id="loginError" class="login-error">Admin Key ไม่ถูกต้อง</div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">✦ Sources</div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button onclick="loadSources()" style="border:none; background:none; cursor:pointer; color:#64748b; font-size:12px;">🔄 Refresh</button>
+                    <button class="btn-logout" onclick="logout()">Exit</button>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn-action" onclick="toggleForm('textForm')">➕ Text Note</button>
+                <button class="btn-action" onclick="document.getElementById('fileInputHidden').click()">📁 Upload File</button>
+            </div>
+
+            <input type="file" id="fileInputHidden" accept=".txt,.pdf,.docx,.xlsx,.xls,.csv,.pptx,.md,.html" style="display: none;" onchange="uploadSourceFile(this)">
+
+            <div id="textForm" class="input-card" style="display: none;">
+                <input type="text" id="textTitle" placeholder="ชื่อโน้ต (Title)">
+                <textarea id="textContent" placeholder="เนื้อหาความรู้..."></textarea>
+                <button class="btn-submit" onclick="addTextSource()">Save Note</button>
+            </div>
+
+            <div id="uploadStatus" class="status-msg" style="display: none; padding: 8px; background: #eff6ff; border-radius: 6px; color: #1d4ed8;"></div>
+
+            <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-top: 8px;">Saved Sources</div>
+            
+            <div id="sourcesList" class="sources-container">กำลังดึงข้อมูล...</div>
+        </div>
+
+        <div class="main-workspace">
+            <div class="workspace-header">
+                <div style="font-weight: 600; font-size: 15px;">Notebook Workspace</div>
+                <span style="font-size: 12px; color: #10b981; background: #ecfdf5; padding: 4px 8px; border-radius: 12px; font-weight:600;">● Active</span>
+            </div>
+
+            <div id="chatContainer" class="chat-container">
+                <div class="chat-welcome">
+                    <h1>Let's test your notebook...</h1>
+                    <p>อัปโหลดไฟล์หรือเพิ่มโน้ตทางฝั่งซ้าย เพื่อทดสอบ AI ได้ทันที</p>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="input-wrapper">
+                    <input type="text" id="chatInput" placeholder="Ask a question about your sources..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="btn-send" onclick="sendMessage()">➔</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const savedKey = sessionStorage.getItem("ADMIN_KEY");
+            if (savedKey) checkKeyAndUnlock(savedKey);
+        };
+
+        async function verifyLogin() {
+            const key = document.getElementById("loginKey").value.trim();
+            if (key) checkKeyAndUnlock(key);
+        }
+
+        async function checkKeyAndUnlock(key) {
+            try {
+                const res = await fetch(`/api/admin/sources?admin_key=${encodeURIComponent(key)}`);
+                if (res.ok) {
+                    sessionStorage.setItem("ADMIN_KEY", key);
+                    document.getElementById("loginOverlay").style.display = "none";
+                    document.getElementById("loginError").style.display = "none";
+                    loadSources();
+                } else {
+                    document.getElementById("loginError").style.display = "block";
+                    sessionStorage.removeItem("ADMIN_KEY");
+                }
+            } catch (err) { alert("ไม่สามารถติดต่อเซิร์ฟเวอร์ได้"); }
+        }
+
+        function logout() {
+            sessionStorage.removeItem("ADMIN_KEY");
+            document.getElementById("loginKey").value = "";
+            document.getElementById("loginOverlay").style.display = "flex";
+        }
+
+        function toggleForm(id) {
+            const form = document.getElementById(id);
+            form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        async function loadSources() {
+            const key = sessionStorage.getItem("ADMIN_KEY");
+            if (!key) return;
+
+            try {
+                const res = await fetch(`/api/admin/sources?admin_key=${encodeURIComponent(key)}`);
+                const data = await res.json();
+                if (res.ok) renderSources(data.sources);
+            } catch (err) { console.error(err); }
+        }
+
+        function renderSources(sources) {
+            const container = document.getElementById("sourcesList");
+            if (sources.length === 0) {
+                container.innerHTML = `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:20px;">ไม่มีข้อมูลไฟล์</div>`;
+                return;
+            }
+
+            container.innerHTML = sources.map(src => `
+                <div class="source-card ${src.active ? '' : 'disabled'}">
+                    <div class="source-header">
+                        <div class="source-name">
+                            ${src.type === 'file' ? '📄' : '📝'} ${src.name}
+                        </div>
+                    </div>
+                    <div class="source-meta">เพิ่มเมื่อ: ${src.created_at || 'ไม่ระบุ'}</div>
+                    <div class="source-actions">
+                        <button class="btn-icon" onclick="toggleSource('${src.id}')" title="เปิด/ปิดการใช้งาน">
+                            ${src.active ? '👁️ ใช้งานอยู่' : '🙈 ปิดใช้งาน'}
+                        </button>
+                        <button class="btn-icon btn-delete" onclick="deleteSource('${src.id}', '${src.name}')" title="ลบไฟล์">
+                            🗑️ ลบ
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function uploadSourceFile(inputElement) {
+            const key = sessionStorage.getItem("ADMIN_KEY");
+            if (!key || inputElement.files.length === 0) return;
+
+            const file = inputElement.files[0];
+            const statusDiv = document.getElementById("uploadStatus");
+            statusDiv.style.display = "block";
+            statusDiv.textContent = `⏳ กำลังอ่านข้อมูลจาก "${file.name}"...`;
+
+            const formData = new FormData();
+            formData.append("admin_key", key);
+            formData.append("file", file);
+
+            try {
+                const res = await fetch("/api/admin/sources/upload", { method: "POST", body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    statusDiv.textContent = `✅ ${data.message}`;
+                    inputElement.value = "";
+                    loadSources();
+                    setTimeout(() => statusDiv.style.display = "none", 3000);
+                } else { alert(data.detail || "เกิดข้อผิดพลาด"); }
+            } catch (err) { alert("เกิดข้อผิดพลาดในการอัปโหลด"); }
+        }
+
+        async function addTextSource() {
+            const key = sessionStorage.getItem("ADMIN_KEY");
+            const title = document.getElementById("textTitle").value.trim();
+            const content = document.getElementById("textContent").value.trim();
+            if (!key || !title || !content) return alert("กรุณากรอกข้อมูลให้ครบ");
+
+            try {
+                const res = await fetch("/api/admin/sources/text", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ admin_key: key, title: title, content: content })
+                });
+                if (res.ok) {
+                    document.getElementById("textTitle").value = "";
+                    document.getElementById("textContent").value = "";
+                    toggleForm('textForm');
+                    loadSources();
+                }
+            } catch (err) { alert("บันทึกไม่สำเร็จ"); }
+        }
+
+        async function toggleSource(id) {
+            const key = sessionStorage.getItem("ADMIN_KEY");
+            try {
+                await fetch(`/api/admin/sources/${id}/toggle?admin_key=${encodeURIComponent(key)}`, { method: "PATCH" });
+                loadSources();
+            } catch (err) { alert("เปลี่ยนสถานะไม่สำเร็จ"); }
+        }
+
+        async function deleteSource(id, name) {
+            if (!confirm(`คุณต้องการลบ "${name}" ใช่หรือไม่?`)) return;
+            const key = sessionStorage.getItem("ADMIN_KEY");
+            try {
+                await fetch(`/api/admin/sources/${id}?admin_key=${encodeURIComponent(key)}`, { method: "DELETE" });
+                loadSources();
+            } catch (err) { alert("ลบไม่สำเร็จ"); }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById("chatInput");
+            const text = input.value.trim();
+            if (!text) return;
+
+            const chatContainer = document.getElementById("chatContainer");
+            const welcome = document.querySelector(".chat-welcome");
+            if (welcome) welcome.remove();
+
+            chatContainer.innerHTML += `<div class="message-bubble message-user">${text}</div>`;
+            input.value = "";
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            const aiBubble = document.createElement("div");
+            aiBubble.className = "message-bubble message-ai";
+            aiBubble.textContent = "กำลังคิดคำตอบ...";
+            chatContainer.appendChild(aiBubble);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const res = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                aiBubble.textContent = res.ok ? data.answer : "เกิดข้อผิดพลาดในการดึงคำตอบ";
+            } catch (err) { aiBubble.textContent = "ไม่สามารถติดต่อ AI ได้"; }
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>

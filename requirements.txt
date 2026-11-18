@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+google-genai
+discord.py
+python-dotenv
+pydantic
+pypdf
+python-multipart
+python-docx
+pandas
+openpyxl
+python-pptx
+beautifulsoup4

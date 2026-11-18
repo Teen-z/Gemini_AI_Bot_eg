@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Assistant</title>
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+    <div class="app">
+
+        <header class="header">
+
+            <div class="brand">
+                <div class="logo">✦</div>
+
+                <div>
+                    <h2>AI Assistant</h2>
+                    <span>Powered by Gemini</span>
+                </div>
+            </div>
+
+            <div class="status">
+                <span class="status-dot"></span>
+                พร้อมใช้งาน
+            </div>
+
+        </header>
+
+
+        <main class="main">
+
+            <section class="welcome" id="welcome">
+
+                <div class="welcome-icon">✦</div>
+
+                <h1>มีอะไรให้ช่วยไหม?</h1>
+
+                <p>
+                    ถามคำถามได้เลย AI พร้อมช่วยคุณ
+                    ทั้งการเรียน การทำงาน และความรู้ทั่วไป
+                </p>
+
+                <div class="suggestions">
+
+                    <button class="suggestion"
+                        data-question="ช่วยอธิบาย Python ให้เข้าใจง่าย">
+                        อธิบายเกี่ยวกับ Python
+                    </button>
+
+                    <button class="suggestion"
+                        data-question="ช่วยเขียนโค้ด Arduino เบื้องต้น">
+                        เขียนโค้ด Arduino
+                    </button>
+
+                    <button class="suggestion"
+                        data-question="ช่วยสรุปความรู้เกี่ยวกับ AI">
+                        สรุปความรู้เกี่ยวกับ AI
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <section class="chat-area" id="chatArea"></section>
+
+        </main>
+
+
+        <footer class="footer">
+
+            <form id="chatForm">
+
+                <textarea
+                    id="messageInput"
+                    placeholder="พิมพ์คำถามของคุณ..."
+                    rows="1"
+                    maxlength="4000"
+                    required
+                ></textarea>
+
+                <button type="submit" id="sendButton">
+                    ➤
+                </button>
+
+            </form>
+
+            <p>
+                AI อาจให้ข้อมูลคลาดเคลื่อนได้
+                โปรดตรวจสอบข้อมูลสำคัญอีกครั้ง
+            </p>
+
+        </footer>
+
+    </div>
+
+    <script src="/script.js"></script>
+
+</body>
+</html>
