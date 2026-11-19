@@ -211,6 +211,56 @@ def is_temporary_error(error):
     return any(c in status_text or c in error_text for c in temporary_codes) or any(m in error_text for m in temporary_messages)
 
 
+_cached_models = None
+
+
+def get_available_models() -> list[str]:
+    """ดึงรายชื่อโมเดลที่ API Key นี้ใช้งานได้จริง เพื่อป้องกัน Error 404 ชื่อโมเดลผิด"""
+    global _cached_models
+    if _cached_models:
+        return _cached_models
+
+    preferred = [
+        os.getenv("GEMINI_MODEL", ""),
+        "gemini-3-flash-preview",
+        "gemini-3-flash",
+        "gemini-3.0-flash",
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
+    ]
+    preferred = [m for m in preferred if m]
+
+    try:
+        discovered_flash = []
+        discovered_other = []
+        for m in client.models.list():
+            name = getattr(m, "name", "")
+            if name.startswith("models/"):
+                name = name.replace("models/", "", 1)
+            methods = getattr(m, "supported_generation_methods", None) or []
+            if methods and "generateContent" not in methods:
+                continue
+            if "gemini" in name and "embedding" not in name and "imagen" not in name and "veo" not in name:
+                if "flash" in name:
+                    discovered_flash.append(name)
+                else:
+                    discovered_other.append(name)
+
+        # เรียงให้รุ่นเลขใหม่สุด (เช่น 3.x) ขึ้นก่อน
+        discovered_flash.sort(reverse=True)
+        discovered_other.sort(reverse=True)
+        combined = list(dict.fromkeys(preferred + discovered_flash + discovered_other))
+        if combined:
+            _cached_models = combined
+            print("AVAILABLE GEMINI MODELS:", _cached_models[:6])
+            return _cached_models
+    except Exception as e:
+        print("LIST MODELS ERROR:", e)
+
+    return list(dict.fromkeys(preferred))
+
+
 def ask_ai(
     message: str,
     history: list = None,
@@ -236,11 +286,7 @@ def ask_ai(
 
     contents.append(types.Content(role="user", parts=user_parts))
 
-    target_models = list(dict.fromkeys([
-        os.getenv("GEMINI_MODEL", "gemini-3.0-flash"),
-        "gemini-3.0-flash",
-        "gemini-2.5-flash"
-    ]))
+    target_models = get_available_models()
 
     current_system_prompt = build_system_prompt(
         message,
@@ -278,7 +324,7 @@ def ask_ai(
 
         except Exception as error:
             print(f"GEMINI ERROR ({current_model}): {error}")
-            if is_temporary_error(error) or "404" in str(error):
+            if is_temporary_error(error) or "404" in str(error) or "NOT_FOUND" in str(error):
                 continue
             continue
 
