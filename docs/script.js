@@ -1,5 +1,5 @@
 // เปลี่ยน URL ด้านล่างนี้เป็นลิงก์ Backend Server ของคุณ (เช่น Render / Railway / Koyeb)
-const API_BASE_URL = "https://your-backend-app.onrender.com";
+const API_BASE_URL = "https://gemini-ai-bot-eg.onrender.com";
 
 const form = document.getElementById("chatForm");
 const input = document.getElementById("messageInput");
