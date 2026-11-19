@@ -164,7 +164,6 @@ def build_system_prompt(query: str, history: list = None, allow_confidential: bo
 
 === 4. แนวทางการตอบ ===
 - หากคำถามเกี่ยวกับข้อมูลภายใน ให้ยึดตาม "คลังความรู้" และ "ข้อมูลพื้นฐานขององค์กร" เป็นหลัก
-- หากคำถามเกี่ยวกับเหตุการณ์ปัจจุบัน ข่าวสาร สภาพอากาศ หรือความรู้ทั่วไปที่ไม่อยู่ในคลังความรู้ สามารถใช้เครื่องมือ Google Search ค้นหาข้อมูลล่าสุดมาตอบได้
 - ตอบภาษาเดียวกับที่ผู้ใช้ถาม (ภาษาไทยให้ตอบภาษาไทย)
 - ตอบสั้น กระชับ สุภาพ เป็นธรรมชาติ และจัดรูปแบบให้อ่านง่าย
 - ห้ามอ้างอิงชื่อไฟล์ต้นฉบับในคลังความรู้
@@ -262,8 +261,7 @@ def ask_ai(
                 config=types.GenerateContentConfig(
                     system_instruction=current_system_prompt,
                     max_output_tokens=2048,
-                    temperature=0.2,
-                    tools=[types.Tool(google_search=types.GoogleSearch())]
+                    temperature=0.2
                 )
             )
 
