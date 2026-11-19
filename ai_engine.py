@@ -237,7 +237,8 @@ def ask_ai(
     contents.append(types.Content(role="user", parts=user_parts))
 
     target_models = list(dict.fromkeys([
-        os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        os.getenv("GEMINI_MODEL", "gemini-3.0-flash"),
+        "gemini-3.0-flash",
         "gemini-2.5-flash"
     ]))
 

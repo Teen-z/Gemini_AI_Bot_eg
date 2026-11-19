@@ -15,12 +15,11 @@ from bs4 import BeautifulSoup
 SCOPES = ['https://www.googleapis.com/auth/drive']
 FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
 
-# Cache ชั่วคราวใน RAM ลดการเรียก API ซ้ำซ้อน
 _cache = {
     "sources": None,
     "last_fetch": 0
 }
-CACHE_TTL = 60  # อัปเดตข้อมูลจาก Drive ทุกๆ 60 วินาที
+CACHE_TTL = 60
 
 
 def get_drive_service():
@@ -74,7 +73,12 @@ def extract_text_bytes(filename: str, content_bytes: bytes) -> str:
 
 def _find_file_in_folder(service, filename: str):
     query = f"name = '{filename}' and '{FOLDER_ID}' in parents and trashed = false"
-    results = service.files().list(q=query, fields="files(id, name)").execute()
+    results = service.files().list(
+        q=query,
+        fields="files(id, name)",
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True
+    ).execute()
     files = results.get('files', [])
     return files[0]['id'] if files else None
 
@@ -95,31 +99,37 @@ def get_all_sources(force_refresh: bool = False) -> list:
         # 1. อ่านไฟล์ sources.json (โน้ตและไฟล์ที่เพิ่มผ่านระบบ Admin)
         sources_file_id = _find_file_in_folder(service, "sources.json")
         if sources_file_id:
-            request = service.files().get_media(fileId=sources_file_id)
+            request = service.files().get_media(fileId=sources_file_id, supportsAllDrives=True)
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, request)
             done = False
             while not done:
                 _, done = downloader.next_chunk()
-            sources = json.loads(fh.getvalue().decode("utf-8"))
+            raw_json = fh.getvalue().decode("utf-8").strip()
+            if raw_json:
+                sources = json.loads(raw_json)
 
         # 2. อ่านไฟล์เอกสารอื่นๆ ที่คุณอัปโหลดลงโฟลเดอร์ Google Drive โดยตรง
         tracked_drive_ids = {s.get("drive_file_id") for s in sources if s.get("drive_file_id")}
         query = f"'{FOLDER_ID}' in parents and trashed = false and name != 'sources.json' and name != 'chat_logs.jsonl'"
-        results = service.files().list(q=query, fields="files(id, name, mimeType, createdTime)").execute()
+        results = service.files().list(
+            q=query,
+            fields="files(id, name, mimeType, createdTime)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
 
         updated_from_drive = False
         for f in results.get("files", []):
             if f["id"] in tracked_drive_ids:
                 continue
 
-            # ดาวน์โหลดไฟล์ใหม่ที่เพิ่งโยนเข้า Drive มาแปลงเป็นข้อความ
             if f["mimeType"] == "application/vnd.google-apps.document":
                 req = service.files().export_media(fileId=f["id"], mimeType="text/plain")
             elif f["mimeType"] == "application/vnd.google-apps.spreadsheet":
                 req = service.files().export_media(fileId=f["id"], mimeType="text/csv")
             else:
-                req = service.files().get_media(fileId=f["id"])
+                req = service.files().get_media(fileId=f["id"], supportsAllDrives=True)
 
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, req)
@@ -142,7 +152,7 @@ def get_all_sources(force_refresh: bool = False) -> list:
                 })
                 updated_from_drive = True
 
-        if updated_from_drive:
+        if updated_from_drive and sources_file_id:
             save_sources(sources)
 
         _cache["sources"] = sources
@@ -155,7 +165,7 @@ def get_all_sources(force_refresh: bool = False) -> list:
 
 
 def save_sources(sources: list):
-    """บันทึกข้อมูลกลับไปยัง sources.json บน Google Drive"""
+    """บันทึกข้อมูลกลับไปยัง sources.json บน Google Drive (ต้องมีไฟล์ sources.json อยู่ในโฟลเดอร์ก่อน)"""
     if not FOLDER_ID:
         return
     try:
@@ -165,10 +175,10 @@ def save_sources(sources: list):
         media = MediaIoBaseUpload(io.BytesIO(json_bytes), mimetype="application/json", resumable=True)
 
         if file_id:
-            service.files().update(fileId=file_id, media_body=media).execute()
+            service.files().update(fileId=file_id, media_body=media, supportsAllDrives=True).execute()
         else:
             metadata = {"name": "sources.json", "parents": [FOLDER_ID]}
-            service.files().create(body=metadata, media_body=media).execute()
+            service.files().create(body=metadata, media_body=media, supportsAllDrives=True).execute()
 
         _cache["sources"] = sources
         _cache["last_fetch"] = time.time()
@@ -181,7 +191,7 @@ def upload_file_to_drive(filename: str, content_bytes: bytes, mime_type: str = "
     service = get_drive_service()
     metadata = {"name": filename, "parents": [FOLDER_ID]}
     media = MediaIoBaseUpload(io.BytesIO(content_bytes), mimetype=mime_type, resumable=True)
-    created = service.files().create(body=metadata, media_body=media, fields="id").execute()
+    created = service.files().create(body=metadata, media_body=media, fields="id", supportsAllDrives=True).execute()
     return created.get("id")
 
 
@@ -189,6 +199,6 @@ def delete_file_from_drive(drive_file_id: str):
     """ลบไฟล์ออกจาก Google Drive"""
     try:
         service = get_drive_service()
-        service.files().delete(fileId=drive_file_id).execute()
+        service.files().delete(fileId=drive_file_id, supportsAllDrives=True).execute()
     except Exception as e:
         print("GDRIVE DELETE ERROR:", e)
