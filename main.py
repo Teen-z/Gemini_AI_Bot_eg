@@ -48,11 +48,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AI Cloud Knowledge Base Assistant", lifespan=lifespan)
 
 # อนุญาตให้หน้าเว็บที่รันบน GitHub Pages เรียกใช้งาน API ข้ามโดเมนได้
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+allowed_origins = [origin.strip().rstrip("/") for origin in raw_origins.split(",") if origin.strip()]
+if not allowed_origins:
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in allowed_origins],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=False if "*" in allowed_origins else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
